@@ -1,0 +1,22 @@
+- name: Get basic facts
+  hosts: bsd_hosts
+  gather_facts: true
+  tasks:
+    - name: Display version
+      debug:
+        msg: "{{ ansible_distribution }} with version {{ ansible_distribution_version }}"
+
+    - name: Get current storage
+      shell: df -h | tail -n +2 | awk '{ print $1 }'
+      register: disk_space
+      changed_when: false
+
+    - debug:
+        msg: "{{ disk_space.stdout_lines }}"
+
+    - name: Ensure bsdinfo exists
+      become: true
+      become_method: su
+      pkgng:
+        name: bsdinfo
+        state: present

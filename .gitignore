@@ -1,0 +1,2 @@
+group_vars/bsd_hosts/secrets.yml
+inventory.yml

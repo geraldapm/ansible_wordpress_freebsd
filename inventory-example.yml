@@ -1,0 +1,14 @@
+all:
+  vars:
+    ansible_connection: ssh
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+  hosts:
+    bsdsrv01:
+      ansible_host: 192.168.1.1
+  children:
+    bsd_hosts:
+      hosts:
+        bsdsrv01:
+    wordpress:
+      hosts:
+        bsdsrv01:
