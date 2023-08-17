@@ -3,20 +3,21 @@
   gather_facts: true
   tasks:
     - name: Display version
-      debug:
+      ansible.builtin.debug:
         msg: "{{ ansible_distribution }} with version {{ ansible_distribution_version }}"
 
     - name: Get current storage
-      shell: df -h | tail -n +2 | awk '{ print $1 }'
+      ansible.builtin.shell: set -o pipefail && df -h | tail -n +2 | awk '{ print $1 }'
       register: disk_space
       changed_when: false
 
-    - debug:
+    - name: Print disk usage space
+      ansible.builtin.debug:
         msg: "{{ disk_space.stdout_lines }}"
 
     - name: Ensure bsdinfo exists
       become: true
-      become_method: su
-      pkgng:
+      become_method: ansible.builtin.su
+      community.general.pkgng:
         name: bsdinfo
         state: present

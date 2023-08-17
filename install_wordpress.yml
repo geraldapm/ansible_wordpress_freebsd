@@ -1,30 +1,33 @@
 - name: Install apache web server with php support
   hosts: wordpress
   gather_facts: false
+  handlers:
+
   tasks:
     - name: Install web server sequence
       become: true
       block:
         - name: Ensure required app exists
-          pkgng:
+          community.general.pkgng:
             name:
               - apache24
               - php81
               - mod_php81
               - wordpress
             state: present
-        
+
         - name: Enable rc.conf to enable apache24
-          lineinfile:
+          ansible.builtin.lineinfile:
             path: /etc/rc.conf
             line: "{{ item }}"
+            mode: "0644"
             create: true
           loop:
             - apache24_enable="YES"
             - apache24_http_accept_enable="YES"
 
         - name: Set ownership to www for wordpress folder
-          file:
+          ansible.builtin.file:
             path: /usr/local/www/wordpress
             state: directory
             recurse: true
@@ -32,24 +35,26 @@
             group: www
 
         - name: Copy httpd.conf to adjust php service (local to remote)
-          copy:
+          ansible.builtin.copy:
             src: files/httpd.conf
             dest: /usr/local/etc/apache24/httpd.conf
+            mode: "0644"
           notify: Restart apache24
-        
+
         - name: Check if wp-config.php already exists
           register: wp_config_path
-          stat:
+          ansible.builtin.stat:
             path: /usr/local/www/wordpress/wp-config.php
 
         - name: Template wp-config.php
           when: not wp_config_path.stat.exists | d(false)
-          template:
+          ansible.builtin.template:
             src: templates/wp-config.php.j2
             dest: /usr/local/www/wordpress/wp-config.php
-        
+            mode: "0644"
+
         - name: Restart apache24
-          service:
+          ansible.builtin.service:
             name: apache24
             state: restarted
 
@@ -57,39 +62,40 @@
       become: true
       block:
         - name: Ensure required DB app exists
-          pkgng:
+          community.general.pkgng:
             name:
               - mariadb106-server
             state: present
 
         - name: Edit rc.conf to enable mysql
           register: mysql_rc_conf
-          lineinfile:
+          ansible.builtin.lineinfile:
             path: /etc/rc.conf
             line: mysql_enable="YES"
-            create: yes
+            mode: "0644"
+            create: true
 
-        - name: Restart DB Service
+        - name: Restart DB Service # noqa: no-handler
           when: mysql_rc_conf.changed | d(false)
-          service:
+          ansible.builtin.service:
             name: mysql-server
             state: restarted
 
         - name: Set mysql root password
           changed_when: false
-          command: mysqladmin -u root password '{{ mysql_root_password }}'
+          ansible.builtin.command: mysqladmin -u root password '{{ mysql_root_password }}'
 
         - name: Check existing database
           changed_when: false
           register: mysql_db_exists
-          shell: mysql -e "show databases" | grep {{ mysql_wordpress_database }}; exit 0
-        
+          ansible.builtin.shell: set -o pipefail && mysql -e "show databases" | grep {{ mysql_wordpress_database }}; exit 0
+
         # Sementara bikin DB Manual
         - name: Create database and user for wordpress
           register: mysql_db
           when: mysql_db_exists.stdout_lines | length == 0
           changed_when: "'database exists' not in mysql_db.stderr"
-          shell: >-
+          ansible.builtin.shell: >-
             mysql -e "
             create database {{ mysql_wordpress_database }};
             grant all on {{ mysql_wordpress_database }}.* to {{ mysql_wordpress_user }}@127.0.0.1 identified by '{{ mysql_wordpress_pass }}';
